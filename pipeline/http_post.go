@@ -34,13 +34,13 @@ type HTTPPostNode struct {
 	chainnode
 
 	// tick:ignore
-	Endpoints []string `tick:"Endpoint"`
+	Endpoints []string `tick:"Endpoint" json:"endpoints"`
 
 	// Headers
-	Headers map[string]string `tick:"Header"`
+	Headers map[string]string `tick:"Header" json:"headers"`
 
 	// tick:ignore
-	URLs []string
+	URLs []string `json:"urls"`
 }
 
 func newHTTPPostNode(wants EdgeType, urls ...string) *HTTPPostNode {
@@ -50,16 +50,40 @@ func newHTTPPostNode(wants EdgeType, urls ...string) *HTTPPostNode {
 	}
 }
 
-func (p *HTTPPostNode) MarshalJSON() ([]byte, error) {
-	props := map[string]interface{}{
-		"type":     "httpPost",
-		"nodeID":   fmt.Sprintf("%d", p.ID()),
-		"children": p.node,
-		"endpoint": p.Endpoints,
-		"headers":  p.Header,
-		"urls":     p.URLs,
+// MarshalJSON converts HTTPPostNode to JSON
+func (n *HTTPPostNode) MarshalJSON() ([]byte, error) {
+	type Alias HTTPPostNode
+	var raw = &struct {
+		*TypeOf
+		*Alias
+	}{
+		TypeOf: &TypeOf{
+			Type: "httpPost",
+			ID:   n.ID(),
+		},
+		Alias: (*Alias)(n),
 	}
-	return json.Marshal(props)
+	return json.Marshal(raw)
+}
+
+// UnmarshalJSON converts JSON to an HTTPPostNode
+func (n *HTTPPostNode) UnmarshalJSON(data []byte) error {
+	type Alias HTTPPostNode
+	var raw = &struct {
+		*TypeOf
+		*Alias
+	}{
+		Alias: (*Alias)(n),
+	}
+	err := json.Unmarshal(data, raw)
+	if err != nil {
+		return err
+	}
+	if raw.Type != "httpPost" {
+		return fmt.Errorf("error unmarshaling node %d of type %s as HTTPPostNode", raw.ID, raw.Type)
+	}
+	n.setID(raw.ID)
+	return nil
 }
 
 // tick:ignore
